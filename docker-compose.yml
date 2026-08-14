@@ -1,0 +1,145 @@
+version: '3.8'
+
+networks:
+  invecho_public:
+    name: invecho_public
+  invecho_internal:
+    name: invecho_internal
+
+services:
+  traefik:
+    image: traefik:latest
+    container_name: invecho-traefik
+    command:
+      - "--api.insecure=true"
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    environment:
+      - DOCKER_API_VERSION=1.54
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - invecho_public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`proxy.invecho.local`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.entrypoints=web"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: invecho-frontend
+    volumes:
+      - ./frontend:/usr/src/app
+      - /usr/src/app/node_modules
+    environment:
+      - BACKEND_URL=http://invecho-backend:3000
+    networks:
+      - invecho_public
+      - invecho_internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=invecho_public"
+      - "traefik.http.routers.frontend.rule=Host(`app.invecho.local`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.services.frontend.loadbalancer.server.port=4200"
+
+  backend:
+    build:
+      context: ./backend
+    container_name: invecho-backend
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - invecho_public
+      - invecho_internal
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_DATABASE=${POSTGRES_DB}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=invecho_public"
+      - "traefik.http.routers.backend.rule=Host(`api.invecho.local`)"
+      - "traefik.http.routers.backend.entrypoints=web"
+      - "traefik.http.services.backend.loadbalancer.server.port=3000"
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: invecho-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    networks:
+      - invecho_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: invecho-redis
+    networks:
+      - invecho_internal
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis-monitor:
+    image: rediscommander/redis-commander:latest
+    container_name: invecho-redis-monitor
+    environment:
+      REDIS_HOSTS: "local:redis:6379"
+    networks:
+      - invecho_public
+      - invecho_internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=invecho_public"
+      - "traefik.http.routers.redis-monitor.rule=Host(`redis.invecho.local`)"
+      - "traefik.http.routers.redis-monitor.entrypoints=web"
+      - "traefik.http.services.redis-monitor.loadbalancer.server.port=8081"
+
+  inspector:
+    image: openzipkin/zipkin:latest
+    container_name: invecho-inspector
+    networks:
+      - invecho_public
+      - invecho_internal
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9411/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=invecho_public"
+      - "traefik.http.routers.inspector.rule=Host(`inspector.invecho.local`)"
+      - "traefik.http.routers.inspector.entrypoints=web"
+      - "traefik.http.services.inspector.loadbalancer.server.port=9411"
