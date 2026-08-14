@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: theme('colors.slate.50');
+    --foreground: theme('colors.slate.950');
+    
+    --card: theme('colors.white');
+    --card-foreground: theme('colors.slate.950');
+    
+    --border: theme('colors.slate.200');
+    
+    --primary: theme('colors.blue.600');
+    --primary-foreground: theme('colors.white');
+    
+    --muted: theme('colors.slate.100');
+    --muted-foreground: theme('colors.slate.500');
+
+    --success: theme('colors.emerald.500');
+    --success-foreground: theme('colors.emerald.50');
+    
+    --warning: theme('colors.amber.500');
+    --warning-foreground: theme('colors.amber.950');
+    
+    --destructive: theme('colors.red.500');
+    --destructive-foreground: theme('colors.red.50');
+  }
+
+  .dark {
+    --background: theme('colors.slate.950');
+    --foreground: theme('colors.slate.50');
+    
+    --card: theme('colors.slate.900');
+    --card-foreground: theme('colors.slate.50');
+    
+    --border: theme('colors.slate.800');
+    
+    --primary: theme('colors.blue.500');
+    --primary-foreground: theme('colors.white');
+    
+    --muted: theme('colors.slate.800');
+    --muted-foreground: theme('colors.slate.400');
+    
+    --success: theme('colors.emerald.600');
+    --success-foreground: theme('colors.white');
+    
+    --warning: theme('colors.amber.600');
+    --warning-foreground: theme('colors.white');
+    
+    --destructive: theme('colors.red.600');
+    --destructive-foreground: theme('colors.white');
+  }
+}
+
+
+@layer base {
+  * {
+    @apply border-[var(--border)];
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    @apply antialiased min-h-screen transition-colors duration-300;
+  }
+}
