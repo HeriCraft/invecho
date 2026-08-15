@@ -7,6 +7,7 @@ import { CallingModule } from './calling/calling.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PersistenceModule } from './persistence/persistence.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { PersistenceModule } from './persistence/persistence.module';
     CallingModule,
     SuppliersModule,
     NotificationsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
